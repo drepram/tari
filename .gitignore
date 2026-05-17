@@ -29,6 +29,12 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
+
+# local tooling caches
+.eslintcache
+.cache/
+.turbo/
 
 # env files (can opt-in for committing if needed)
 .env*
