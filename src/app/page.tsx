@@ -34,6 +34,7 @@ export default function Home() {
     }),
   );
   const [escapeLatex, setEscapeLatex] = useState(true);
+  const [realtimeConversion, setRealtimeConversion] = useState(false);
   const [copied, setCopied] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const copyResetTimer = useRef<number | null>(null);
@@ -102,6 +103,13 @@ export default function Home() {
     convertWith(markdownInput, nextValue);
   }
 
+  function handleRealtimeToggle(nextValue: boolean) {
+    setRealtimeConversion(nextValue);
+    if (nextValue) {
+      convertWith(markdownInput, escapeLatex);
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#f8f9ed_0%,_#d9ddc2_45%,_#c8cfb0_100%)] text-zinc-900">
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 md:px-10 md:py-12">
@@ -158,6 +166,16 @@ export default function Home() {
               />
               Escape symbols
             </label>
+
+            <label className="inline-flex items-center gap-2 rounded-md border border-zinc-900/20 bg-white px-3 py-2 text-sm text-zinc-700">
+              <input
+                type="checkbox"
+                checked={realtimeConversion}
+                onChange={(event) => handleRealtimeToggle(event.target.checked)}
+                className="size-4 accent-zinc-900"
+              />
+              Real-time conversion
+            </label>
           </div>
 
           {errorMessage ? (
@@ -181,7 +199,13 @@ export default function Home() {
             </div>
             <textarea
               value={markdownInput}
-              onChange={(event) => setMarkdownInput(event.target.value)}
+              onChange={(event) => {
+                const nextValue = event.target.value;
+                setMarkdownInput(nextValue);
+                if (realtimeConversion) {
+                  convertWith(nextValue, escapeLatex);
+                }
+              }}
               onKeyDown={(event) => {
                 if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
                   handleConvert();
