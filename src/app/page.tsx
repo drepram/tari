@@ -113,7 +113,7 @@ export default function Home() {
               rel="noreferrer"
               className="transition hover:text-zinc-900"
             >TARI</a> - La<span className="font-black">T</span>eX{" "}
-            M<span className="font-black">AR</span>kdown{" "}
+            M<span className="font-black">ar</span>kdown{" "}
             <span className="font-black">I</span>nterpreter
           </h1>
           <p className="mt-3 max-w-3xl text-base leading-7 text-zinc-700 md:text-lg">
