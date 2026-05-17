@@ -125,7 +125,8 @@ export default function Home() {
             <span className="font-black">I</span>nterpreter
           </h1>
           <p className="mt-3 max-w-3xl text-base leading-7 text-zinc-700 md:text-lg">
-            Convert Markdown into LaTeX syntax for common structures like
+            TARI is a Markdown to LaTeX converter that transforms common
+            Markdown structures into clean LaTeX syntax, including
             <code className="mx-1 rounded bg-zinc-900 px-1.5 py-0.5 text-sm text-zinc-100">
               \textit
             </code>

@@ -13,9 +13,42 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TARI - LaTeX Markdown Interpreter",
+  metadataBase: new URL("https://tari.drepram.com"),
+  title: {
+    default: "TARI - Markdown to LaTeX Converter",
+    template: "%s | TARI",
+  },
   description:
-    "Convert Markdown syntax into clean LaTeX output with TARI, a LaTeX Markdown interpreter.",
+    "TARI is a Markdown to LaTeX converter and Markdown to LaTeX syntax interpreter for clean, copy-ready LaTeX output.",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    title: "TARI - Markdown to LaTeX Converter",
+    description:
+      "Convert Markdown into clean, copy-ready LaTeX syntax with TARI.",
+    url: "https://tari.drepram.com",
+    siteName: "TARI",
+    locale: "en-US",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "TARI - Markdown to LaTeX Converter",
+    description:
+      "Convert Markdown into clean, copy-ready LaTeX syntax with TARI.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export default function RootLayout({
