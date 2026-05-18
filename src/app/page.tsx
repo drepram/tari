@@ -111,7 +111,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_#f8f9ed_0%,_#d9ddc2_45%,_#c8cfb0_100%)] text-zinc-900">
+    <div className="min-h-screen overflow-x-hidden bg-[radial-gradient(circle_at_top,_#f8f9ed_0%,_#d9ddc2_45%,_#c8cfb0_100%)] text-zinc-900">
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-8 px-4 py-8 md:px-10 md:py-12">
         <section className="rounded-2xl border border-zinc-900/10 bg-white/65 p-6 shadow-[0_12px_40px_rgba(36,40,22,0.09)] backdrop-blur">
           <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">
@@ -127,15 +127,15 @@ export default function Home() {
           <p className="mt-3 max-w-3xl text-base leading-7 text-zinc-700 md:text-lg">
             TARI is a Markdown to LaTeX converter that transforms common
             Markdown structures into clean LaTeX syntax, including
-            <code className="mx-1 rounded bg-zinc-900 px-1.5 py-0.5 text-sm text-zinc-100">
+            <code className="mx-1 inline-block max-w-full break-all rounded bg-zinc-900 px-1.5 py-0.5 text-sm text-zinc-100">
               \textit
             </code>
             ,
-            <code className="mx-1 rounded bg-zinc-900 px-1.5 py-0.5 text-sm text-zinc-100">
+            <code className="mx-1 inline-block max-w-full break-all rounded bg-zinc-900 px-1.5 py-0.5 text-sm text-zinc-100">
               \textbf
             </code>
             ,
-            <code className="mx-1 rounded bg-zinc-900 px-1.5 py-0.5 text-sm text-zinc-100">
+            <code className="mx-1 inline-block max-w-full break-all rounded bg-zinc-900 px-1.5 py-0.5 text-sm text-zinc-100">
               \begin{"{"}enumerate{"}"}
             </code>
             , tables, blockquotes, and verse wrappers.
