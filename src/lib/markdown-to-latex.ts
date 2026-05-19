@@ -149,7 +149,7 @@ function paragraphToLatex(
       .split(/\r?\n/g)
       .map((line) => maybeEscape(line.trimEnd(), options.escapeLatex));
 
-    return lines.join(" \\\\\n");
+    return lines.map((line) => `${line}\\\\`).join("\n");
   }
 
   return node.children.map((child) => convertPhrasing(child, options)).join("");
@@ -265,8 +265,13 @@ function convertBlock(
     case "heading":
       return headingToLatex(node as Heading, options);
 
-    case "paragraph":
-      return paragraphToLatex(node as Paragraph, options, inList);
+    case "paragraph": {
+      const paragraph = paragraphToLatex(node as Paragraph, options, inList);
+      if (options.poetryMode && !inList) {
+        return wrapVerse(paragraph);
+      }
+      return paragraph;
+    }
 
     case "list":
       return listToLatex(node as List, options);
@@ -296,6 +301,7 @@ function applyLatexHeuristics(value: string): string {
   return value
     .replace(/(?:\.|…){3,}/g, "\\dots")
     .replace(/---/g, "---")
+    .replace(/,,/g, "„")
     .replace(/([A-Za-z])2\b/g, "$1\\textsuperscript{2}");
 }
 
@@ -320,6 +326,5 @@ export function markdownToLatex(
     return "";
   }
 
-  const output = settings.poetryMode ? wrapVerse(body) : body;
-  return applyLatexHeuristics(output);
+  return applyLatexHeuristics(body);
 }

@@ -34,6 +34,7 @@ export default function Home() {
     }),
   );
   const [escapeLatex, setEscapeLatex] = useState(true);
+  const [verseMode, setVerseMode] = useState(false);
   const [realtimeConversion, setRealtimeConversion] = useState(false);
   const [copied, setCopied] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -48,10 +49,10 @@ export default function Home() {
   }, []);
 
   const convertWith = useCallback(
-    (input: string, shouldEscape: boolean) => {
+    (input: string, shouldEscape: boolean, shouldUseVerseMode: boolean) => {
       try {
         const converted = markdownToLatex(input, {
-          poetryMode: false,
+          poetryMode: shouldUseVerseMode,
           escapeLatex: shouldEscape,
         });
 
@@ -65,12 +66,12 @@ export default function Home() {
   );
 
   function handleConvert() {
-    convertWith(markdownInput, escapeLatex);
+    convertWith(markdownInput, escapeLatex, verseMode);
   }
 
   function handleLoadExample() {
     setMarkdownInput(EXAMPLE_MARKDOWN);
-    convertWith(EXAMPLE_MARKDOWN, escapeLatex);
+    convertWith(EXAMPLE_MARKDOWN, escapeLatex, verseMode);
   }
 
   function handleClear() {
@@ -100,13 +101,18 @@ export default function Home() {
 
   function handleEscapeToggle(nextValue: boolean) {
     setEscapeLatex(nextValue);
-    convertWith(markdownInput, nextValue);
+    convertWith(markdownInput, nextValue, verseMode);
+  }
+
+  function handleVerseToggle(nextValue: boolean) {
+    setVerseMode(nextValue);
+    convertWith(markdownInput, escapeLatex, nextValue);
   }
 
   function handleRealtimeToggle(nextValue: boolean) {
     setRealtimeConversion(nextValue);
     if (nextValue) {
-      convertWith(markdownInput, escapeLatex);
+      convertWith(markdownInput, escapeLatex, verseMode);
     }
   }
 
@@ -171,6 +177,16 @@ export default function Home() {
             <label className="inline-flex items-center gap-2 rounded-md border border-zinc-900/20 bg-white px-3 py-2 text-sm text-zinc-700">
               <input
                 type="checkbox"
+                checked={verseMode}
+                onChange={(event) => handleVerseToggle(event.target.checked)}
+                className="size-4 accent-zinc-900"
+              />
+              Verse mode
+            </label>
+
+            <label className="inline-flex items-center gap-2 rounded-md border border-zinc-900/20 bg-white px-3 py-2 text-sm text-zinc-700">
+              <input
+                type="checkbox"
                 checked={realtimeConversion}
                 onChange={(event) => handleRealtimeToggle(event.target.checked)}
                 className="size-4 accent-zinc-900"
@@ -204,7 +220,7 @@ export default function Home() {
                 const nextValue = event.target.value;
                 setMarkdownInput(nextValue);
                 if (realtimeConversion) {
-                  convertWith(nextValue, escapeLatex);
+                  convertWith(nextValue, escapeLatex, verseMode);
                 }
               }}
               onKeyDown={(event) => {
