@@ -324,7 +324,7 @@ function convertBlock(
       return codeToLatex(node as Code);
 
     case "thematicBreak":
-      return "\\hrulefill";
+      return "\\begin{center}\n***\n\\end{center}";
 
     case "table":
       return tableToLatex(node as Table, options);
