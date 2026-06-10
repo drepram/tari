@@ -35,7 +35,7 @@ export default function Home() {
   );
   const [escapeLatex, setEscapeLatex] = useState(true);
   const [verseMode, setVerseMode] = useState(false);
-  const [realtimeConversion, setRealtimeConversion] = useState(false);
+  const [realtimeConversion, setRealtimeConversion] = useState(true);
   const [copied, setCopied] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const copyResetTimer = useRef<number | null>(null);

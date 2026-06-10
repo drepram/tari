@@ -37,7 +37,48 @@ const headingCommands = [
   "subparagraph",
 ];
 
+const markdownBlockPattern = /^(#{1,6}\s|>\s?|[-+*]\s|\d+[.)]\s|```|~~~|\|.*\|| {4,}|\t|[-*_]{3,}\s*$)/;
+
 const markdownParser = unified().use(remarkParse).use(remarkGfm);
+
+function normalizeParagraphSpacing(markdown: string, poetryMode: boolean): string {
+  if (poetryMode) {
+    return markdown;
+  }
+
+  const lines = markdown.split(/\r?\n/g);
+  const normalized: string[] = [];
+  let inCodeFence = false;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const trimmed = line.trim();
+
+    normalized.push(line);
+
+    if (/^(```|~~~)/.test(trimmed)) {
+      inCodeFence = !inCodeFence;
+      continue;
+    }
+
+    if (inCodeFence || trimmed.length === 0 || markdownBlockPattern.test(trimmed)) {
+      continue;
+    }
+
+    const nextLine = lines[index + 1];
+    const nextTrimmed = nextLine?.trim() ?? "";
+
+    if (
+      nextTrimmed.length > 0 &&
+      !markdownBlockPattern.test(nextTrimmed) &&
+      normalized[normalized.length - 1] !== ""
+    ) {
+      normalized.push("");
+    }
+  }
+
+  return normalized.join("\n");
+}
 
 function escapeLatexText(value: string): string {
   const escaped: string[] = [];
@@ -314,7 +355,9 @@ export function markdownToLatex(
     escapeLatex: options.escapeLatex ?? true,
   };
 
-  const ast = markdownParser.parse(markdown) as Root;
+  const ast = markdownParser.parse(
+    normalizeParagraphSpacing(markdown, settings.poetryMode),
+  ) as Root;
 
   const blocks = ast.children
     .map((node) => convertBlock(node, settings, false))
