@@ -41,6 +41,156 @@ const markdownBlockPattern = /^(#{1,6}\s|>\s?|[-+*]\s|\d+[.)]\s|```|~~~|\|.*\|| 
 
 const markdownParser = unified().use(remarkParse).use(remarkGfm);
 
+const alphabeticListMarker = "TARIALPHALISTITEM ";
+const verseMarker = "TARIVERSEBLOCK ";
+const verseBreakMarker = "TARIVERSEBREAK";
+const attributionMarker = "TARIATTRIBUTION ";
+const dotRunMarker = "TARIDOTRUN";
+
+type ChapterHeading = {
+  number: number;
+  title: string;
+};
+
+function romanToNumber(roman: string): number {
+  const values: Record<string, number> = {
+    I: 1,
+    V: 5,
+    X: 10,
+    L: 50,
+    C: 100,
+    D: 500,
+    M: 1000,
+  };
+
+  return [...roman].reduce((total, character, index, characters) => {
+    const value = values[character];
+    const nextValue = values[characters[index + 1]] ?? 0;
+    return total + (value < nextValue ? -value : value);
+  }, 0);
+}
+
+function parseChapterHeading(value: string): ChapterHeading | null {
+  const match = value.trim().match(/^([IVXLCDM]+)\.\s+(.+?)\.?$/);
+  if (!match || match[2] !== match[2].toUpperCase()) {
+    return null;
+  }
+
+  return {
+    number: romanToNumber(match[1]),
+    title: match[2],
+  };
+}
+
+function normalizeVerseBlocks(value: string): string {
+  const lines = value.split(/\r?\n/g);
+  const normalized: string[] = [];
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const stanza: string[] = [];
+    let cursor = index;
+
+    while (
+      cursor < lines.length &&
+      lines[cursor].trim() !== "" &&
+      lines[cursor].trim().length <= 80 &&
+      !/^\(.+\)\.$/.test(lines[cursor].trim())
+    ) {
+      stanza.push(lines[cursor].trimEnd());
+      cursor += 1;
+    }
+
+    const attribution = lines[cursor]?.trim().match(/^(\(.+\))\.$/);
+    if (stanza.length >= 3 && attribution) {
+      normalized.push(
+        `${verseMarker}${stanza.join(verseBreakMarker)}`,
+        "",
+        `${attributionMarker}${attribution[1]}`,
+      );
+      index = cursor;
+      continue;
+    }
+
+    normalized.push(lines[index]);
+  }
+
+  return normalized.join("\n");
+}
+
+function expandInlineAlphabeticLists(value: string): string {
+  return value
+    .split(/\r?\n/g)
+    .flatMap((line) => {
+      const firstItem = line.search(/(?:^|\s)a\.\s+/);
+      if (firstItem < 0 || !/\s+b\.\s+/.test(line.slice(firstItem))) {
+        return [line];
+      }
+
+      const prefix = line.slice(0, firstItem).trimEnd();
+      const listText = line.slice(firstItem).trimStart();
+      const matches = Array.from(listText.matchAll(/(?:^|\s)([a-z])\.\s+/g));
+
+      if (matches.length < 2) {
+        return [line];
+      }
+
+      const output = prefix ? [prefix, ""] : [];
+
+      for (let index = 0; index < matches.length; index += 1) {
+        const match = matches[index];
+        const contentStart = (match.index ?? 0) + match[0].length;
+        const contentEnd = matches[index + 1]?.index ?? listText.length;
+        let content = listText.slice(contentStart, contentEnd).trim();
+
+        if (index === matches.length - 1) {
+          const trailingParagraph = content.match(/^([\s\S]*?[.!?;])\s+(?=[A-ZÀ-ÖØ-Þ])/u);
+          if (trailingParagraph) {
+            content = trailingParagraph[1];
+            output.push(`1. ${alphabeticListMarker}${content}`);
+            output.push("", listText.slice(contentStart + trailingParagraph[0].length).trim());
+            return output;
+          }
+        }
+
+        output.push(`1. ${alphabeticListMarker}${content}`);
+      }
+
+      return output;
+    })
+    .join("\n");
+}
+
+function markLineBasedAlphabeticLists(value: string): string {
+  const lines = value.split(/\r?\n/g);
+
+  return lines
+    .map((line, index) => {
+      const match = line.match(/^(\s*)[a-z]\.\s+(.+)$/);
+      if (!match) {
+        return line;
+      }
+
+      let previous = index - 1;
+      while (
+        previous >= 0 &&
+        (lines[previous].trim() === "" || /^\s*[a-z]\.\s+/.test(lines[previous]))
+      ) {
+        previous -= 1;
+      }
+
+      const nested = previous >= 0 && /^\s*\d+[.)]\s+/.test(lines[previous]);
+      const indentation = nested ? "    " : match[1];
+      return `${indentation}1. ${alphabeticListMarker}${match[2]}`;
+    })
+    .join("\n");
+}
+
+function normalizePlainTextLists(value: string): string {
+  return markLineBasedAlphabeticLists(
+    expandInlineAlphabeticLists(normalizeVerseBlocks(value)),
+  );
+}
+
 function normalizeParagraphSpacing(markdown: string, poetryMode: boolean): string {
   if (poetryMode) {
     return markdown;
@@ -185,15 +335,50 @@ function paragraphToLatex(
   options: Required<ConvertOptions>,
   inList: boolean,
 ): string {
+  const rawParagraph = toString(node);
+  const chapter = parseChapterHeading(rawParagraph);
+
+  if (!inList && chapter) {
+    const title = maybeEscape(chapter.title, options.escapeLatex);
+    const pageBreak = chapter.number > 1 ? "\\newpage\n" : "";
+    return `${pageBreak}\\refstepcounter{chapter}\\label{pt:${chapter.number}}\n\\centerpart{${title}}{}`;
+  }
+
+  if (!inList && rawParagraph.startsWith(verseMarker)) {
+    const verse = rawParagraph
+      .slice(verseMarker.length)
+      .split(verseBreakMarker)
+      .map((line) => maybeEscape(line, options.escapeLatex))
+      .join("\n")
+      .replace(/\.{3,}/g, (dots) => `${dotRunMarker}${dots.length}END`);
+    return wrapVerse(verse);
+  }
+
+  if (!inList && rawParagraph.startsWith(attributionMarker)) {
+    const attribution = maybeEscape(
+      rawParagraph.slice(attributionMarker.length),
+      options.escapeLatex,
+    );
+    return `\\textit{${attribution}}.`;
+  }
+
   if (options.poetryMode && !inList) {
-    const lines = toString(node)
+    const lines = rawParagraph
       .split(/\r?\n/g)
       .map((line) => maybeEscape(line.trimEnd(), options.escapeLatex));
 
     return lines.map((line) => `${line}\\\\`).join("\n");
   }
 
-  return node.children.map((child) => convertPhrasing(child, options)).join("");
+  const paragraph = node.children
+    .map((child) => convertPhrasing(child, options))
+    .join("");
+
+  if (!inList && /^(?:[A-Z]|[IVXLCDM]+)\.\s+\S/.test(rawParagraph)) {
+    return `\\noindent\\textbf{${paragraph}}`;
+  }
+
+  return paragraph;
 }
 
 function tableCellToLatex(
@@ -249,22 +434,51 @@ function tableToLatex(table: Table, options: Required<ConvertOptions>): string {
 function listItemToLatex(
   node: ListItem,
   options: Required<ConvertOptions>,
+  depth: number,
+  alphabetic: boolean,
 ): string {
   const parts = node.children
-    .map((child) => convertBlock(child, options, true))
+    .map((child) =>
+      child.type === "list"
+        ? listToLatex(child as List, options, depth + 1)
+        : convertBlock(child, options, true),
+    )
     .filter(Boolean)
-    .join("\n");
+    .join("\n\n");
+  const content = alphabetic
+    ? parts.replace(alphabeticListMarker, "")
+    : parts;
+  const indentation = "    ".repeat(depth + 1);
 
-  return `\\item ${parts}`.trimEnd();
+  return `${indentation}\\item ${content}`.trimEnd();
 }
 
-function listToLatex(node: List, options: Required<ConvertOptions>): string {
+function listToLatex(
+  node: List,
+  options: Required<ConvertOptions>,
+  depth = 0,
+): string {
   const environment = node.ordered ? "enumerate" : "itemize";
-  const items = node.children
-    .map((item) => listItemToLatex(item, options))
-    .join("\n");
+  const alphabetic = node.children.every((item) =>
+    toString(item).startsWith(alphabeticListMarker),
+  );
+  const indentation = "    ".repeat(depth);
+  const opening = alphabetic
+    ? `\\begin{${environment}}[label=\\alph*.]`
+    : `\\begin{${environment}}`;
+  const renderedItems = node.children.map((item) =>
+    listItemToLatex(item, options, depth, alphabetic),
+  );
+  const items = renderedItems
+    .map((item, index) => {
+      const previousItem = renderedItems[index - 1];
+      const separator =
+        node.spread || depth > 0 || previousItem?.includes("\n") ? "\n\n" : "\n";
+      return index === 0 ? item : `${separator}${item}`;
+    })
+    .join("");
 
-  return `\\begin{${environment}}\n${items}\n\\end{${environment}}`;
+  return `${indentation}${opening}\n${items}\n${indentation}\\end{${environment}}`;
 }
 
 function headingToLatex(
@@ -343,7 +557,23 @@ function applyLatexHeuristics(value: string): string {
     .replace(/(?:\.|…){3,}/g, "\\dots")
     .replace(/---/g, "---")
     .replace(/,,/g, "„")
-    .replace(/([A-Za-z])2\b/g, "$1\\textsuperscript{2}");
+    .replace(/²/g, "\\textsuperscript{2}")
+    .replace(/([A-Za-z])2\b/g, "$1\\textsuperscript{2}")
+    .replace(new RegExp(`${dotRunMarker}(\\d+)END`, "g"), (_, length: string) =>
+      ".".repeat(Number(length)),
+    );
+}
+
+export function extractLatexToc(markdown: string): string {
+  return markdown
+    .split(/\r?\n/g)
+    .map((line) => parseChapterHeading(line))
+    .filter((heading): heading is ChapterHeading => heading !== null)
+    .map(({ number, title }) => {
+      const escapedTitle = escapeLatexText(title);
+      return `\\item \\hyperref[pt:${number}]{\\textbf{\\small ${escapedTitle}}} \\dotfill \\pageref{pt:${number}}`;
+    })
+    .join("\n");
 }
 
 export function markdownToLatex(
@@ -355,8 +585,9 @@ export function markdownToLatex(
     escapeLatex: options.escapeLatex ?? true,
   };
 
+  const normalizedLists = normalizePlainTextLists(markdown);
   const ast = markdownParser.parse(
-    normalizeParagraphSpacing(markdown, settings.poetryMode),
+    normalizeParagraphSpacing(normalizedLists, settings.poetryMode),
   ) as Root;
 
   const blocks = ast.children
