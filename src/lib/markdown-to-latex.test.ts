@@ -55,16 +55,16 @@ c. pengangkatan lebih banjak lagi orang Indonésia mendjadi anggota Déwan Hindi
   );
 });
 
-test("converts uppercase Roman numeral headings into chapter parts", () => {
-  const input = `I. ARTI DAN GUNA PELADJARAN SEDJARAH
+test("converts level-one Markdown headings into chapter parts", () => {
+  const input = `# pertama
 
 Isi pertama dengan kedjadian².
 
-II. PERGERAKAN SEDUNIA.
+# bagian 2
 
 Isi kedua.
 
-I. Politik :
+## Politik
 
 1. Program pertama.`;
 
@@ -72,13 +72,13 @@ I. Politik :
 
   assert.match(
     output,
-    /^\\refstepcounter\{chapter\}\\label\{pt:1\}\n\\centerpart\{ARTI DAN GUNA PELADJARAN SEDJARAH\}\{\}/,
+    /^\\refstepcounter\{chapter\}\\label\{pt:1\}\n\\centerpart\{pertama\}\{\}/,
   );
   assert.match(
     output,
-    /\\newpage\n\\refstepcounter\{chapter\}\\label\{pt:2\}\n\\centerpart\{PERGERAKAN SEDUNIA\}\{\}/,
+    /\\newpage\n\\refstepcounter\{chapter\}\\label\{pt:2\}\n\\centerpart\{bagian 2\}\{\}/,
   );
-  assert.match(output, /\\noindent\\textbf\{I\. Politik :\}/);
+  assert.match(output, /\\section\{Politik\}/);
 });
 
 test("converts a stanza and its attribution", () => {
@@ -101,15 +101,28 @@ Senantiasa bertambah besar
 });
 
 test("extracts a linked table of contents from chapter headings", () => {
-  const input = `I. ARTI DAN GUNA PELADJARAN SEDJARAH
-I. Politik :
-II. PERGERAKAN SEDUNIA.
-XIV. PENUTUP`;
+  const input = `# pertama
+## Politik
+# bagian 2
+# PENUTUP`;
 
   assert.equal(
     extractLatexToc(input),
-    `\\item \\hyperref[pt:1]{\\textbf{\\small ARTI DAN GUNA PELADJARAN SEDJARAH}} \\dotfill \\pageref{pt:1}
-\\item \\hyperref[pt:2]{\\textbf{\\small PERGERAKAN SEDUNIA}} \\dotfill \\pageref{pt:2}
-\\item \\hyperref[pt:14]{\\textbf{\\small PENUTUP}} \\dotfill \\pageref{pt:14}`,
+    `\\item \\hyperref[pt:1]{\\textbf{\\small pertama}} \\dotfill \\pageref{pt:1}
+\\item \\hyperref[pt:2]{\\textbf{\\small bagian 2}} \\dotfill \\pageref{pt:2}
+\\item \\hyperref[pt:3]{\\textbf{\\small PENUTUP}} \\dotfill \\pageref{pt:3}`,
+  );
+});
+
+test("does not infer chapters from unmarked Roman numeral text", () => {
+  const input = `I. pertama
+
+REVOLUSI Perantjis !
+
+# kedua`;
+
+  assert.equal(
+    extractLatexToc(input),
+    "\\item \\hyperref[pt:1]{\\textbf{\\small kedua}} \\dotfill \\pageref{pt:1}",
   );
 });

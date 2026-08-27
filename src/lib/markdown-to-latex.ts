@@ -47,41 +47,6 @@ const verseBreakMarker = "TARIVERSEBREAK";
 const attributionMarker = "TARIATTRIBUTION ";
 const dotRunMarker = "TARIDOTRUN";
 
-type ChapterHeading = {
-  number: number;
-  title: string;
-};
-
-function romanToNumber(roman: string): number {
-  const values: Record<string, number> = {
-    I: 1,
-    V: 5,
-    X: 10,
-    L: 50,
-    C: 100,
-    D: 500,
-    M: 1000,
-  };
-
-  return [...roman].reduce((total, character, index, characters) => {
-    const value = values[character];
-    const nextValue = values[characters[index + 1]] ?? 0;
-    return total + (value < nextValue ? -value : value);
-  }, 0);
-}
-
-function parseChapterHeading(value: string): ChapterHeading | null {
-  const match = value.trim().match(/^([IVXLCDM]+)\.\s+(.+?)\.?$/);
-  if (!match || match[2] !== match[2].toUpperCase()) {
-    return null;
-  }
-
-  return {
-    number: romanToNumber(match[1]),
-    title: match[2],
-  };
-}
-
 function normalizeVerseBlocks(value: string): string {
   const lines = value.split(/\r?\n/g);
   const normalized: string[] = [];
@@ -336,13 +301,6 @@ function paragraphToLatex(
   inList: boolean,
 ): string {
   const rawParagraph = toString(node);
-  const chapter = parseChapterHeading(rawParagraph);
-
-  if (!inList && chapter) {
-    const title = maybeEscape(chapter.title, options.escapeLatex);
-    const pageBreak = chapter.number > 1 ? "\\newpage\n" : "";
-    return `${pageBreak}\\refstepcounter{chapter}\\label{pt:${chapter.number}}\n\\centerpart{${title}}{}`;
-  }
 
   if (!inList && rawParagraph.startsWith(verseMarker)) {
     const verse = rawParagraph
@@ -484,12 +442,18 @@ function listToLatex(
 function headingToLatex(
   node: Heading,
   options: Required<ConvertOptions>,
+  chapterNumber?: number,
 ): string {
-  const command = headingCommands[Math.min(node.depth, 5) - 1] || "paragraph";
   const content = node.children
     .map((child) => convertPhrasing(child, options))
     .join("");
 
+  if (node.depth === 1 && chapterNumber !== undefined) {
+    const pageBreak = chapterNumber > 1 ? "\\newpage\n" : "";
+    return `${pageBreak}\\refstepcounter{chapter}\\label{pt:${chapterNumber}}\n\\centerpart{${content}}{}`;
+  }
+
+  const command = headingCommands[Math.min(Math.max(node.depth - 2, 0), 4)];
   return `\\${command}{${content}}`;
 }
 
@@ -565,11 +529,13 @@ function applyLatexHeuristics(value: string): string {
 }
 
 export function extractLatexToc(markdown: string): string {
-  return markdown
-    .split(/\r?\n/g)
-    .map((line) => parseChapterHeading(line))
-    .filter((heading): heading is ChapterHeading => heading !== null)
-    .map(({ number, title }) => {
+  const ast = markdownParser.parse(markdown) as Root;
+
+  return ast.children
+    .filter((node): node is Heading => node.type === "heading" && node.depth === 1)
+    .map((heading, index) => {
+      const number = index + 1;
+      const title = toString(heading);
       const escapedTitle = escapeLatexText(title);
       return `\\item \\hyperref[pt:${number}]{\\textbf{\\small ${escapedTitle}}} \\dotfill \\pageref{pt:${number}}`;
     })
@@ -590,8 +556,16 @@ export function markdownToLatex(
     normalizeParagraphSpacing(normalizedLists, settings.poetryMode),
   ) as Root;
 
+  let chapterNumber = 0;
   const blocks = ast.children
-    .map((node) => convertBlock(node, settings, false))
+    .map((node) => {
+      if (node.type === "heading" && node.depth === 1) {
+        chapterNumber += 1;
+        return headingToLatex(node, settings, chapterNumber);
+      }
+
+      return convertBlock(node, settings, false);
+    })
     .filter((node) => node.trim().length > 0);
 
   const body = blocks.join("\n\n").trim();
