@@ -46,6 +46,63 @@ const verseMarker = "TARIVERSEBLOCK ";
 const verseBreakMarker = "TARIVERSEBREAK";
 const attributionMarker = "TARIATTRIBUTION ";
 const dotRunMarker = "TARIDOTRUN";
+const latexFragmentMarker = "TARIRAWLATEX";
+
+function protectLatexFragments(value: string): {
+  markdown: string;
+  fragments: string[];
+} {
+  const fragments: string[] = [];
+  let markdown = "";
+
+  for (let index = 0; index < value.length; index += 1) {
+    const centerCommand = value
+      .slice(index)
+      .match(/^\\+(?:begin|end)\{center\}/)?.[0];
+    if (centerCommand) {
+      markdown += `${latexFragmentMarker}${fragments.length}END`;
+      fragments.push(centerCommand.replace(/^\\+/, "\\"));
+      index += centerCommand.length - 1;
+      continue;
+    }
+
+    const footnoteStart = value.slice(index).match(/^\\+footnote\{/);
+    if (!footnoteStart) {
+      markdown += value[index];
+      continue;
+    }
+
+    let depth = 0;
+    let cursor = index + footnoteStart[0].length - 1;
+
+    for (; cursor < value.length; cursor += 1) {
+      if (value[cursor] === "\\") {
+        cursor += 1;
+        continue;
+      }
+
+      if (value[cursor] === "{") {
+        depth += 1;
+      } else if (value[cursor] === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          break;
+        }
+      }
+    }
+
+    if (depth !== 0) {
+      markdown += value[index];
+      continue;
+    }
+
+    markdown += `${latexFragmentMarker}${fragments.length}END`;
+    fragments.push(value.slice(index, cursor + 1).replace(/^\\+/, "\\"));
+    index = cursor;
+  }
+
+  return { markdown, fragments };
+}
 
 function normalizeVerseBlocks(value: string): string {
   const lines = value.split(/\r?\n/g);
@@ -551,7 +608,8 @@ export function markdownToLatex(
     escapeLatex: options.escapeLatex ?? true,
   };
 
-  const normalizedLists = normalizePlainTextLists(markdown);
+  const protectedInput = protectLatexFragments(markdown);
+  const normalizedLists = normalizePlainTextLists(protectedInput.markdown);
   const ast = markdownParser.parse(
     normalizeParagraphSpacing(normalizedLists, settings.poetryMode),
   ) as Root;
@@ -574,5 +632,8 @@ export function markdownToLatex(
     return "";
   }
 
-  return applyLatexHeuristics(body);
+  return applyLatexHeuristics(body).replace(
+    new RegExp(`${latexFragmentMarker}(\\d+)END`, "g"),
+    (_, index: string) => protectedInput.fragments[Number(index)],
+  );
 }

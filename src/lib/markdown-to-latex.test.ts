@@ -126,3 +126,36 @@ REVOLUSI Perantjis !
     "\\item \\hyperref[pt:1]{\\textbf{\\small kedua}} \\dotfill \\pageref{pt:1}",
   );
 });
+
+test("preserves existing LaTeX footnotes", () => {
+  const input = `Ia membeli perusahaan pakaian dekat gapura Kemenangan\\footnote{Perkampungan orang miskin.}; perusahaan itu tetap berjalan.
+
+Mereka tinggal di Djalan Oruzheiny\\footnote{Djalan Oruzheiny: Djalan Meriam atau \\textit{Djalan Persendjataan}.}, dimana kamar-kamar telah dipesan dengan biaya 50%.`;
+
+  assert.equal(
+    markdownToLatex(input),
+    `Ia membeli perusahaan pakaian dekat gapura Kemenangan\\footnote{Perkampungan orang miskin.}; perusahaan itu tetap berjalan.
+
+Mereka tinggal di Djalan Oruzheiny\\footnote{Djalan Oruzheiny: Djalan Meriam atau \\textit{Djalan Persendjataan}.}, dimana kamar-kamar telah dipesan dengan biaya 50\\%.`,
+  );
+
+  assert.equal(
+    markdownToLatex(String.raw`Kemenangan\\footnote{Perkampungan orang miskin.}`),
+    String.raw`Kemenangan\footnote{Perkampungan orang miskin.}`,
+  );
+});
+
+test("preserves existing LaTeX center commands", () => {
+  const input = String.raw`Sebelum \begin{center}teks 50%\end{center} sesudah.`;
+
+  assert.equal(
+    markdownToLatex(input),
+    String.raw`Sebelum \begin{center}teks 50\%\end{center} sesudah.`,
+  );
+
+  const doubled = String.raw`\\begin{center}Tengah\\end{center}`;
+  assert.equal(
+    markdownToLatex(doubled),
+    String.raw`\begin{center}Tengah\end{center}`,
+  );
+});
