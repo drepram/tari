@@ -150,7 +150,7 @@ test("preserves existing LaTeX center commands", () => {
 
   assert.equal(
     markdownToLatex(input),
-    String.raw`Sebelum \begin{center}teks 50\%\end{center} sesudah.`,
+    String.raw`Sebelum \begin{center}teks 50%\end{center} sesudah.`,
   );
 
   const doubled = String.raw`\\begin{center}Tengah\\end{center}`;
@@ -158,4 +158,12 @@ test("preserves existing LaTeX center commands", () => {
     markdownToLatex(doubled),
     String.raw`\begin{center}Tengah\end{center}`,
   );
+});
+
+test("preserves nested LaTeX commands inside a center environment", () => {
+  const input = String.raw`\begin{center}
+\textbf{\textit{2}}
+\end{center}`;
+
+  assert.equal(markdownToLatex(input), input);
 });
