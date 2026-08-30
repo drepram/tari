@@ -521,7 +521,7 @@ function headingToLatex(
 
   if (node.depth === 1 && chapterNumber !== undefined) {
     const pageBreak = chapterNumber > 1 ? "\\newpage\n" : "";
-    return `${pageBreak}\\refstepcounter{chapter}\\label{pt:${chapterNumber}}\n\\centerpart{${content}}{}`;
+    return `${pageBreak}\\newpage\n\\refstepcounter{chapter}\\label{pt:${chapterNumber}}\n\\centerpart{${content}}{}`;
   }
 
   const command = headingCommands[Math.min(Math.max(node.depth - 2, 0), 4)];
