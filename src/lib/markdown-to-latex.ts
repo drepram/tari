@@ -56,17 +56,17 @@ function protectLatexFragments(value: string): {
   let markdown = "";
 
   for (let index = 0; index < value.length; index += 1) {
-    const centerBlock = value
+    const rawEnvironment = value
       .slice(index)
-      .match(/^\\+begin\{center\}[\s\S]*?\\+end\{center\}/)?.[0];
-    if (centerBlock) {
+      .match(/^\\+begin\{(center|verse)\}[\s\S]*?\\+end\{\1\}/)?.[0];
+    if (rawEnvironment) {
       markdown += `${latexFragmentMarker}${fragments.length}END`;
       fragments.push(
-        centerBlock
+        rawEnvironment
           .replace(/^\\+begin/, "\\begin")
-          .replace(/\\+end\{center\}$/, "\\end{center}"),
+          .replace(/\\+end(?=\{(?:center|verse)\}$)/, "\\end"),
       );
-      index += centerBlock.length - 1;
+      index += rawEnvironment.length - 1;
       continue;
     }
 

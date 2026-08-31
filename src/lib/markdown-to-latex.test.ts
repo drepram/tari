@@ -167,3 +167,22 @@ test("preserves nested LaTeX commands inside a center environment", () => {
 
   assert.equal(markdownToLatex(input), input);
 });
+
+test("preserves existing LaTeX verse environments", () => {
+  const input = String.raw`Sebelum.
+
+\begin{verse}
+Bebanmu akan berat\\
+Djiwamu harus kuat\\
+tapi aku pertjaja\\
+langkahmu akan djaja\\
+kuatkan Pribadimu
+\end{verse}
+
+Sesudah 50%.`;
+
+  assert.equal(
+    markdownToLatex(input),
+    `${input.slice(0, input.lastIndexOf("50%"))}50\\%.`,
+  );
+});
